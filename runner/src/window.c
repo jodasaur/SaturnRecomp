@@ -17,7 +17,9 @@
 #include "disc.h"
 #include "game_config.h"
 #include <SDL2/SDL.h>
+#ifndef SATURNRECOMP_NO_VULKAN
 #include <SDL2/SDL_vulkan.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -704,9 +706,17 @@ int main(int argc, char **argv)
     {
         const char *rd = getenv("SATURN_RENDERER");
         headless = getenv("SATURN_HEADLESS") != NULL;
-        /* Vulkan is the production renderer. The named SDL backends remain
-         * available as an explicit software oracle/capture fallback. */
+        /* Select the compiled default backend. Named SDL backends select
+         * presentation of the core's software-rendered image. */
+#ifdef SATURNRECOMP_NO_VULKAN
+        if (rd && !strcmp(rd, "vulkan")) {
+            fprintf(stderr, "Vulkan is disabled in this build; use an SDL renderer or rebuild with SATURNRECOMP_ENABLE_VULKAN=ON\n");
+            return 1;
+        }
+        use_vk = 0;
+#else
         use_vk = !headless && (!rd || !*rd || !strcmp(rd, "vulkan"));
+#endif
     }
     win = SDL_CreateWindow("SaturnRecomp", SDL_WINDOWPOS_CENTERED,
                            SDL_WINDOWPOS_CENTERED, settings.window_width, settings.window_height,
@@ -949,7 +959,11 @@ int main(int argc, char **argv)
                 {1920,1080}, {1920,1440}, {2560,1440}, {3840,2160}
             };
             int dw = 0, dh = 0, ww = 0, wh = 0;
+#ifdef SATURNRECOMP_NO_VULKAN
+            SDL_GetWindowSize(win, &dw, &dh);
+#else
             SDL_Vulkan_GetDrawableSize(win, &dw, &dh);
+#endif
             SDL_GetWindowSize(win, &ww, &wh);
             float dpi = ww > 0 ? (float)dw / ww : 1.0f;
             game_overlay_view view = {0};

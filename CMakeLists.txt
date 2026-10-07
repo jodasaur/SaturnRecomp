@@ -4,8 +4,14 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
-option(SATURNRECOMP_BUILD_GUI "Build the SDL2/Vulkan frontend" OFF)
+option(SATURNRECOMP_BUILD_GUI "Build the SDL2 frontend" OFF)
 option(SATURNRECOMP_BUILD_TESTS "Build and register existing tests" ON)
+if(APPLE)
+    set(saturn_vulkan_default OFF)
+else()
+    set(saturn_vulkan_default ON)
+endif()
+option(SATURNRECOMP_ENABLE_VULKAN "Enable Vulkan in the SDL2 frontend" ${saturn_vulkan_default})
 
 if(NOT CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     message(FATAL_ERROR "SaturnRecomp currently requires GCC or Clang (Windows: MinGW-w64)")
@@ -55,34 +61,43 @@ target_link_libraries(saturnboot PRIVATE saturn_core saturn_settings)
 
 if(SATURNRECOMP_BUILD_GUI)
     find_package(SDL2 CONFIG REQUIRED)
-    find_package(Vulkan REQUIRED)
-    find_program(SATURNRECOMP_GLSLC glslc REQUIRED)
-
-    set(saturn_shaders)
-    foreach(shader vdp1.comp vdp2.comp postprocess.comp game_overlay.vert game_overlay.frag)
-        set(output "${CMAKE_CURRENT_BINARY_DIR}/shaders/${shader}.spv")
-        add_custom_command(OUTPUT "${output}"
-            COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/shaders"
-            COMMAND "${SATURNRECOMP_GLSLC}" "${CMAKE_CURRENT_SOURCE_DIR}/runner/shaders/${shader}" -O -o "${output}"
-            DEPENDS "runner/shaders/${shader}" VERBATIM)
-        list(APPEND saturn_shaders "${output}")
-    endforeach()
-    add_custom_target(saturn_shaders ALL DEPENDS ${saturn_shaders})
-
     add_library(saturn_overlay STATIC runner/src/game_overlay.c)
     target_link_libraries(saturn_overlay PUBLIC saturn_settings SDL2::SDL2)
-    add_library(saturn_vulkan STATIC runner/src/vulkan_renderer.c runner/src/game_overlay_vk.c)
-    target_link_libraries(saturn_vulkan PUBLIC saturn_core saturn_overlay Vulkan::Vulkan)
-    add_dependencies(saturn_vulkan saturn_shaders)
+    if(SATURNRECOMP_ENABLE_VULKAN)
+        find_package(Vulkan REQUIRED)
+        find_program(SATURNRECOMP_GLSLC glslc REQUIRED)
+
+        set(saturn_shaders)
+        foreach(shader vdp1.comp vdp2.comp postprocess.comp game_overlay.vert game_overlay.frag)
+            set(output "${CMAKE_CURRENT_BINARY_DIR}/shaders/${shader}.spv")
+            add_custom_command(OUTPUT "${output}"
+                COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/shaders"
+                COMMAND "${SATURNRECOMP_GLSLC}" "${CMAKE_CURRENT_SOURCE_DIR}/runner/shaders/${shader}" -O -o "${output}"
+                DEPENDS "runner/shaders/${shader}" VERBATIM)
+            list(APPEND saturn_shaders "${output}")
+        endforeach()
+        add_custom_target(saturn_shaders ALL DEPENDS ${saturn_shaders})
+
+        add_library(saturn_vulkan STATIC runner/src/vulkan_renderer.c runner/src/game_overlay_vk.c)
+        target_link_libraries(saturn_vulkan PUBLIC saturn_core saturn_overlay Vulkan::Vulkan)
+        add_dependencies(saturn_vulkan saturn_shaders)
+    else()
+        add_library(saturn_vulkan STATIC runner/src/vulkan_disabled.c)
+        target_link_libraries(saturn_vulkan PUBLIC saturn_core saturn_overlay)
+        target_compile_definitions(saturn_vulkan PUBLIC SATURNRECOMP_NO_VULKAN=1)
+        target_compile_definitions(saturn_overlay PRIVATE SATURNRECOMP_NO_VULKAN=1)
+    endif()
 
     add_executable(saturnwin runner/src/window.c)
     if(TARGET SDL2::SDL2main)
         target_link_libraries(saturnwin PRIVATE SDL2::SDL2main)
     endif()
     target_link_libraries(saturnwin PRIVATE saturn_vulkan)
-    add_custom_command(TARGET saturnwin POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/shaders" "$<TARGET_FILE_DIR:saturnwin>/shaders"
-        VERBATIM)
+    if(SATURNRECOMP_ENABLE_VULKAN)
+        add_custom_command(TARGET saturnwin POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/shaders" "$<TARGET_FILE_DIR:saturnwin>/shaders"
+            VERBATIM)
+    endif()
     if(WIN32)
         add_custom_command(TARGET saturnwin POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:SDL2::SDL2>" "$<TARGET_FILE_DIR:saturnwin>" VERBATIM)

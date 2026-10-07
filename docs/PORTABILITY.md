@@ -207,3 +207,33 @@ with process ASLR disabled via `setarch x86_64 -R` (the ordinary invocation
 cannot initialize ThreadSanitizer in this worker's address layout). Callback
 tests additionally cover discard boundaries, post-reset samples and full-ring
 priming. Native Mac/Windows audio testing is still required.
+
+## Phase 3 software frontend preparation
+
+`SATURNRECOMP_ENABLE_VULKAN` controls the graphical backend independently of
+`SATURNRECOMP_BUILD_GUI`. It defaults off on macOS and on elsewhere. With it
+disabled, CMake discovers only SDL2 for the frontend, does not discover Vulkan
+or glslc, and does not build shaders or GPU tests. A small disabled-backend
+implementation satisfies the existing opaque Vulkan API without SDK types,
+keeping one frontend implementation. It reports unavailable operations and
+does not alter the core's VDP1 sink functions or rendering algorithms.
+
+The frontend chooses SDL presentation by default in that configuration;
+an explicit Vulkan request fails clearly before window creation. Conditional
+SDL Vulkan includes/drawable queries remove Vulkan entry points from the
+software executable. Existing Vulkan builds and PowerShell scripts retain
+their default renderer selection. Shader paths now use forward slashes,
+which work on Windows and POSIX.
+
+The Linux software configuration passes its core, overlay, callback and
+threaded-ring tests. Its CTest smoke test generates a minimal ISO and executes
+three SH-2-loop fields through the real frontend with SDL dummy video/audio.
+It verifies default software selection and rejects an explicit unavailable
+Vulkan request. The same smoke test selects software explicitly in a Vulkan
+build. No proprietary data is required. Undefined-symbol inspection finds no
+Vulkan or SDL Vulkan references in the software executable.
+
+Native ARM64 compilation, visible macOS window/input/audio validation and
+Windows regression testing remain pending. The build commands and native
+checks are in BUILDING.md. This completes preparation for that milestone,
+not host validation or MoltenVK support.

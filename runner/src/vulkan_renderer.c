@@ -418,11 +418,11 @@ static unsigned char *load_shader(const char *name, size_t *size)
     char path[1024]; FILE *f = NULL;
     char *base = SDL_GetBasePath();
     if (base) {
-        snprintf(path, sizeof path, "%sshaders\\%s", base, name);
+        snprintf(path, sizeof path, "%sshaders/%s", base, name);
         f = fopen(path, "rb"); SDL_free(base);
     }
-    if (!f) { snprintf(path, sizeof path, "runner\\shaders\\%s", name); f = fopen(path, "rb"); }
-    if (!f) { snprintf(path, sizeof path, "shaders\\%s", name); f = fopen(path, "rb"); }
+    if (!f) { snprintf(path, sizeof path, "runner/shaders/%s", name); f = fopen(path, "rb"); }
+    if (!f) { snprintf(path, sizeof path, "shaders/%s", name); f = fopen(path, "rb"); }
     if (!f) return NULL;
     fseek(f, 0, SEEK_END); long n = ftell(f); rewind(f);
     if (n <= 0 || (n & 3)) { fclose(f); return NULL; }

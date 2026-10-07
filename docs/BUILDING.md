@@ -40,6 +40,65 @@ Declared games under `games/*/game.toml` also receive the existing CLI module
 validation when Python is available; missing discs are reported as skips.
 No firmware or games are needed for the other C tests.
 
+For an SDL frontend without Vulkan or shader tooling:
+
+```sh
+sudo apt-get install libsdl2-dev
+cmake -S . -B out/software -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DSATURNRECOMP_BUILD_GUI=ON -DSATURNRECOMP_ENABLE_VULKAN=OFF
+cmake --build out/software
+ctest --test-dir out/software --output-on-failure
+```
+
+The core still renders in software; SDL presents the resulting texture using
+an available native backend, falling back to SDL software presentation.
+`SATURN_RENDERER=software` explicitly selects SDL software presentation.
+Requesting `SATURN_RENDERER=vulkan` in a build with Vulkan disabled reports an
+error. Vulkan remains enabled by default for graphical Linux/Windows builds.
+
+## macOS Apple Silicon
+
+From a native ARM64 terminal (`uname -m` should report `arm64`), install the
+Homebrew dependencies and build. If Apple's compiler tools are missing,
+install them with `xcode-select --install` first.
+
+```sh
+brew install cmake ninja sdl2
+cmake -S . -B out/macos -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_PREFIX_PATH="$(brew --prefix sdl2)" \
+  -DSATURNRECOMP_BUILD_GUI=ON -DSATURNRECOMP_ENABLE_VULKAN=OFF
+cmake --build out/macos
+ctest --test-dir out/macos --output-on-failure
+```
+
+macOS defaults to Vulkan disabled. Neither a Vulkan SDK, MoltenVK nor glslc
+is needed for this configuration. It builds the CLI, headless runtime, SDL
+frontend and non-Vulkan tests. Python/Capstone remain optional as described
+above; a skipped decoder oracle means that comparison has not been validated.
+To enable it in an isolated Python environment:
+
+```sh
+python3 -m venv out/test-python
+out/test-python/bin/python -m pip install capstone
+cmake -S . -B out/macos -DPython3_EXECUTABLE="$PWD/out/test-python/bin/python"
+ctest --test-dir out/macos --output-on-failure
+```
+
+The native Mac build/run is still to be verified on an Apple Silicon host;
+these are setup instructions, not a claim of completed native validation.
+With a local, user-supplied game configuration:
+
+```sh
+out/macos/saturnboot "games/<name>/game.toml" 1000000
+out/macos/saturnwin "games/<name>/game.toml"
+```
+
+Check visible presentation and resizing/high-DPI scaling, keyboard/controller
+input, pause/frame stepping and audible playback. In software mode F1 retains
+the existing diagnostic display; the Vulkan settings overlay and interpolation
+are unavailable. CTest's synthetic SDL run uses dummy video/audio drivers and
+does not establish visible presentation or sound quality.
+
 ## Windows
 
 Continue to use `build.ps1`, `tools/build_runtime.ps1`, and `tests/run_all.ps1`
@@ -93,10 +152,9 @@ the helper header-only preserves the existing PowerShell test source lists.
 
 ## Portability work still required
 
-The runtime no longer includes x86 timing intrinsics. The graphical target
-still requires Vulkan; a software-only SDL
-configuration and MoltenVK extension handling are subsequent milestones.
-Shader lookup still contains Windows path separators. MP3-backed CD tracks
+The runtime no longer includes x86 timing intrinsics. An SDL software-only
+configuration is available, and shader lookup uses portable separators.
+MoltenVK extension handling is a subsequent milestone. MP3-backed CD tracks
 are decoded only on Windows; raw BIN/CUE and ISO do not need that decoder.
 The SDL audio ring now uses atomic publication and consumer-owned reset
 handling; see [the audit](PORTABILITY.md). Native audio validation is still

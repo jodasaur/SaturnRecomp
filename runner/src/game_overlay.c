@@ -1,6 +1,8 @@
 #include "game_overlay.h"
 #include <SDL2/SDL.h>
+#ifndef SATURNRECOMP_NO_VULKAN
 #include <SDL2/SDL_vulkan.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -194,7 +196,12 @@ void game_overlay_input_begin(game_overlay *o) {
     o->navigate=o->activate=o->adjust=o->tab_change=0;
     nk_input_begin(&o->context);
     int w=0,h=0,dw=0,dh=0;
-    SDL_GetWindowSize(o->window,&w,&h);SDL_Vulkan_GetDrawableSize(o->window,&dw,&dh);
+    SDL_GetWindowSize(o->window,&w,&h);
+#ifdef SATURNRECOMP_NO_VULKAN
+    dw=w;dh=h;
+#else
+    SDL_Vulkan_GetDrawableSize(o->window,&dw,&dh);
+#endif
     o->input_x=w>0&&dw>0?(float)dw/w:1;o->input_y=h>0&&dh>0?(float)dh/h:1;
 }
 int game_overlay_event(game_overlay *o,const SDL_Event *e) {
