@@ -618,7 +618,7 @@ int main(int argc, char **argv)
                     if (getenv("SATURN_LAYERSTATE")) {
                         FILE *state_file = fopen(getenv("SATURN_LAYERSTATE"), "wb");
                         if (state_file) {
-                            if (fwrite(s, sizeof(*s), 1, state_file) != 1)
+                            if (!saturn_write_snapshot(s, state_file))
                                 fprintf(stderr, "failed to write layer state\n");
                             fclose(state_file);
                         }

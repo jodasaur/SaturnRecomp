@@ -34,8 +34,10 @@ void sound_init(saturn *s)
     s->m68k_target = 0;
     s->scsp_acc = 0;
     s->sound_deferred = 0;
-    s->snd_wp = 0;
-    s->snd_rp = 0;
+    /* Initialization runs before the audio consumer starts. */
+    atomic_init(&s->snd_wp, 0);
+    atomic_init(&s->snd_rp, 0);
+    atomic_init(&s->snd_discard, 0);
 }
 
 /* Called by the SMPC on SNDON / SNDOFF. */
@@ -69,7 +71,8 @@ void sound_clock_change_reset(saturn *s)
     s->m68k_target = 0;
     s->scsp_acc = 0;
     s->sound_deferred = 0;
-    s->snd_wp = s->snd_rp = 0;
+    atomic_store_explicit(&s->snd_discard,
+        atomic_load_explicit(&s->snd_wp, memory_order_relaxed), memory_order_release);
     s->cdda_wp = s->cdda_rp = 0;
     s->cdda_ready = 0;
 }
@@ -210,11 +213,13 @@ static void sound_run_exact(saturn *s, uint32_t sh2_cycles)
             }
         }
 
-        next = (s->snd_wp + 1u) % SATURN_AUDIO_RING_FRAMES;
-        if (next != s->snd_rp) {          /* drop rather than overwrite */
-            s->snd_buf[s->snd_wp * 2u + 0u] = l;
-            s->snd_buf[s->snd_wp * 2u + 1u] = r;
-            s->snd_wp = next;
+        uint64_t wp = atomic_load_explicit(&s->snd_wp, memory_order_relaxed);
+        uint64_t rp = atomic_load_explicit(&s->snd_rp, memory_order_acquire);
+        next = (uint32_t)(wp % SATURN_AUDIO_RING_FRAMES);
+        if (wp - rp < SATURN_AUDIO_RING_FRAMES - 1u) { /* drop rather than overwrite */
+            s->snd_buf[next * 2u + 0u] = l;
+            s->snd_buf[next * 2u + 1u] = r;
+            atomic_store_explicit(&s->snd_wp, wp + 1u, memory_order_release);
         }
     }
 }
@@ -255,15 +260,34 @@ void sound_sync(saturn *s)
 
 /* Drain up to `frames` stereo frames into `out`; returns how many were
  * available. The audio callback runs on another thread, so this only ever
- * moves the read pointer -- the writer only ever moves the write pointer. */
+ * moves the read pointer -- the writer only ever moves the write pointer.
+ * A zero-frame drain acknowledges pending resets before callback priming. */
 uint32_t sound_drain(saturn *s, int16_t *out, uint32_t frames)
 {
     uint32_t n = 0;
-    while (n < frames && s->snd_rp != s->snd_wp) {
-        out[n * 2u + 0u] = s->snd_buf[s->snd_rp * 2u + 0u];
-        out[n * 2u + 1u] = s->snd_buf[s->snd_rp * 2u + 1u];
-        s->snd_rp = (s->snd_rp + 1u) % SATURN_AUDIO_RING_FRAMES;
+    uint64_t rp = atomic_load_explicit(&s->snd_rp, memory_order_relaxed);
+    uint64_t discard = atomic_load_explicit(&s->snd_discard, memory_order_acquire);
+    if (rp < discard) {
+        rp = discard;
+        atomic_store_explicit(&s->snd_rp, rp, memory_order_release);
+    }
+    while (n < frames && rp != atomic_load_explicit(&s->snd_wp, memory_order_acquire)) {
+        uint32_t slot = (uint32_t)(rp % SATURN_AUDIO_RING_FRAMES);
+        out[n * 2u + 0u] = s->snd_buf[slot * 2u + 0u];
+        out[n * 2u + 1u] = s->snd_buf[slot * 2u + 1u];
+        atomic_store_explicit(&s->snd_rp, ++rp, memory_order_release);
         n++;
     }
     return n;
+}
+
+uint32_t sound_queued(const saturn *s)
+{
+    uint64_t rp = atomic_load_explicit(&s->snd_rp, memory_order_acquire);
+    uint64_t discard = atomic_load_explicit(&s->snd_discard, memory_order_acquire);
+    uint64_t wp = atomic_load_explicit(&s->snd_wp, memory_order_acquire);
+    if (rp < discard) rp = discard;
+    /* A diagnostic reader can be descheduled between these loads. */
+    uint64_t fill = wp - rp;
+    return (uint32_t)(fill < SATURN_AUDIO_RING_FRAMES ? fill : SATURN_AUDIO_RING_FRAMES - 1u);
 }

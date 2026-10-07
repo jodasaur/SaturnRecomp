@@ -770,7 +770,7 @@ int saturn_vk_render(saturn_vk_renderer *r, saturn *s, int width, int height,
         if(s->frames>=start && s->frames<start+12) {
             char path[1024];unsigned b=s->fb_draw^1,n=r->geometry_count[b];FILE *f;
             snprintf(path,sizeof path,"%s-%llu.bin",root,(unsigned long long)s->frames);
-            if((f=fopen(path,"wb"))){fwrite(s,sizeof(*s),1,f);fclose(f);}
+            if((f=fopen(path,"wb"))){saturn_write_snapshot(s,f);fclose(f);}
             snprintf(path,sizeof path,"%s-%llu.ops",root,(unsigned long long)s->frames);
             if((f=fopen(path,"wb"))){fwrite(r->geometry[b],sizeof(*r->geometry[b]),n,f);fclose(f);}
             snprintf(path,sizeof path,"%s-%llu.vram",root,(unsigned long long)s->frames);

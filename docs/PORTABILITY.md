@@ -176,3 +176,34 @@ tests cover sample behavior but do not validate concurrent access.
 
 Native ARM64 and MinGW execution remain host-validation tasks. These checks
 establish Linux/headless behavior, not macOS presentation or real-game audio.
+
+## Audio ring correctness follow-up
+
+The Phase 2 ring race is fixed independently of renderer selection. Write/read
+positions are now C11 atomic monotonic 64-bit counters. A producer release
+store publishes both stereo samples; a consumer acquire load observes them.
+The consumer releases its read position only after copying the samples, so
+the producer cannot overwrite a slot still being read. Capacity and the
+existing drop-on-full policy remain unchanged. Counters wrap after more than
+13 million years at 44.1 kHz; storage slots still wrap at the ring capacity.
+
+Sound reset publishes the current write position as a discard boundary. Only
+the consumer moves the read position, including when acknowledging resets.
+The callback acknowledges that boundary before checking its priming threshold,
+so a reset of a full ring cannot stall subsequent production. Samples published
+after the boundary remain available. A reset arriving during a callback can
+leave old samples in that already-started callback; subsequent callbacks discard
+the old queue. No mutex or spin lock is added to the callback.
+
+Queue diagnostics load the atomic positions, and graphics snapshots no longer
+copy audio indices. Native diagnostic state capture copies atomic fields with
+atomic loads while guest execution is stopped. Its structure layout changes;
+old captures must be regenerated. These files remain local diagnostics rather
+than a versioned save format.
+
+The SDL threaded test exercises production, draining, repeated storage wraps
+and concurrent guest sound resets. It passes with GCC ThreadSanitizer when run
+with process ASLR disabled via `setarch x86_64 -R` (the ordinary invocation
+cannot initialize ThreadSanitizer in this worker's address layout). Callback
+tests additionally cover discard boundaries, post-reset samples and full-ring
+priming. Native Mac/Windows audio testing is still required.

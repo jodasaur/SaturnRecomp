@@ -58,7 +58,6 @@ static void picture_snapshot(saturn *out,saturn *s) {
     memcpy(out->vdp2_reg,s->vdp2_reg,sizeof out->vdp2_reg);
     out->fb_draw=s->fb_draw;out->layer_mask=s->layer_mask;out->frames=s->frames;
     out->master=s->master;
-    out->snd_wp=s->snd_wp;out->snd_rp=s->snd_rp;
 #define TAKE_PROFILE(f) out->f+=s->f;s->f=0
     TAKE_PROFILE(prof_master);TAKE_PROFILE(prof_slave);TAKE_PROFILE(prof_vdp1);
     TAKE_PROFILE(prof_video);TAKE_PROFILE(prof_other);
@@ -356,7 +355,8 @@ static void audio_cb(void *user, Uint8 *stream, int len)
     uint32_t frames = (uint32_t)len / 4u;         /* stereo, 16-bit */
     int16_t *out = (int16_t *)stream;
     static int primed;
-    uint32_t fill = (s->snd_wp + SATURN_AUDIO_RING_FRAMES - s->snd_rp) % SATURN_AUDIO_RING_FRAMES;
+    sound_drain(s, NULL, 0);
+    uint32_t fill = sound_queued(s);
     uint32_t got, i;
     uint32_t target = snd_target();
 
@@ -1032,7 +1032,7 @@ int main(int argc, char **argv)
              * +/-1% correction visibly modulated frame delivery. */
             double period = field_secs;
             if (audio_dev) {
-                uint32_t fill = (s->snd_wp + SATURN_AUDIO_RING_FRAMES - s->snd_rp) % SATURN_AUDIO_RING_FRAMES;
+                uint32_t fill = sound_queued(s);
                 double   tgt  = (double)snd_target();
                 double   err  = ((double)fill - tgt) / tgt;
                 if (err >  1.0) err =  1.0;
@@ -1261,7 +1261,7 @@ int main(int argc, char **argv)
             if (audio_dev) {
                 int missing = SDL_AtomicSet(&audio_missing_frames, 0);
                 int underruns = SDL_AtomicSet(&audio_underruns, 0);
-                uint32_t fill = (s->snd_wp + SATURN_AUDIO_RING_FRAMES - s->snd_rp) % SATURN_AUDIO_RING_FRAMES;
+                uint32_t fill = sound_queued(&g_sys);
                 fprintf(stderr, "[audio-prof] queued %u | underruns %d | missing %.2f ms\n",
                         fill, underruns, (double)missing * 1000.0 / 44100.0);
             }

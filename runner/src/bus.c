@@ -16,6 +16,22 @@
 
 /* ------------------------------------------------------------- tracing */
 
+int saturn_write_snapshot(const saturn *s, FILE *out)
+{
+    saturn *copy = calloc(1, sizeof(*copy));
+    if (!copy) return 0;
+    size_t first = offsetof(saturn, snd_wp);
+    size_t last = offsetof(saturn, snd_discard) + sizeof(s->snd_discard);
+    memcpy(copy, s, first);
+    memcpy((char *)copy + last, (const char *)s + last, sizeof(*copy) - last);
+    atomic_init(&copy->snd_wp, atomic_load_explicit(&s->snd_wp, memory_order_acquire));
+    atomic_init(&copy->snd_rp, atomic_load_explicit(&s->snd_rp, memory_order_acquire));
+    atomic_init(&copy->snd_discard, atomic_load_explicit(&s->snd_discard, memory_order_acquire));
+    int ok = fwrite(copy, sizeof(*copy), 1, out) == 1;
+    free(copy);
+    return ok;
+}
+
 static void trace(saturn *s, uint32_t a, int is_write, int size)
 {
     if (!s->trace_enabled) return;

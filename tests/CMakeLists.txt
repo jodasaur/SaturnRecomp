@@ -51,6 +51,7 @@ endif()
 
 if(SATURNRECOMP_BUILD_GUI)
     saturn_test(game_overlay saturn_overlay)
+    saturn_test(audio_ring_threaded saturn_core SDL2::SDL2)
     # This test includes window.c. Linking its full dependencies avoids the
     # original script's reliance on GCC whole-program dead-code removal.
     saturn_test(window_audio saturn_vulkan)

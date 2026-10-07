@@ -75,6 +75,23 @@ int main(void)
     for (unsigned i = 0; i < 128; ++i) if (output[i]) silent = 0;
     check(silent && g_sys.snd_rp == 4, "unprimed callback emits silence while waiting for fresh audio");
 
+    prepare_audio(4);
+    atomic_store_explicit(&g_sys.snd_discard, atomic_load(&g_sys.snd_wp), memory_order_release);
+    check(sound_queued(&g_sys) == 0 && g_sys.snd_rp == 0,
+          "reset marks old samples without moving the consumer pointer");
+    g_sys.snd_wp = 8;
+    check(sound_drain(&g_sys, output, 4) == 4 && g_sys.snd_rp == 8,
+          "consumer discards old audio and retains samples published after reset");
+    check(output[0] == 16000 && output[1] == -24000 && sound_queued(&g_sys) == 0,
+          "post-reset samples retain their original values");
+
+    atomic_store(&g_sys.snd_discard, 0);
+    prepare_audio(SATURN_AUDIO_RING_FRAMES - 1u);
+    atomic_store_explicit(&g_sys.snd_discard, atomic_load(&g_sys.snd_wp), memory_order_release);
+    audio_cb(&g_sys, (Uint8 *)output, sizeof output);
+    check(g_sys.snd_rp == g_sys.snd_wp && sound_queued(&g_sys) == 0,
+          "unprimed callback acknowledges reset of a full ring");
+
     printf("window audio: %d checks, %d failures\n", checks, failures);
     return failures != 0;
 }

@@ -98,8 +98,10 @@ still requires Vulkan; a software-only SDL
 configuration and MoltenVK extension handling are subsequent milestones.
 Shader lookup still contains Windows path separators. MP3-backed CD tracks
 are decoded only on Windows; raw BIN/CUE and ISO do not need that decoder.
-The SDL audio ring's cross-thread synchronization needs correction before
-native graphical/audio validation; see [the audit](PORTABILITY.md).
+The SDL audio ring now uses atomic publication and consumer-owned reset
+handling; see [the audit](PORTABILITY.md). Native audio validation is still
+required. Regenerate diagnostic structure snapshots after rebuilding, since
+their native layout changes with the ring counters.
 
 Native macOS and Windows validation must be performed on those hosts. Linux
 compilation and synthetic tests do not establish visible presentation, audio

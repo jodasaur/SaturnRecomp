@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdatomic.h>
 #include "m68k.h"
 
 /* ------------------------------------------------------------ SH-2 state */
@@ -352,7 +353,9 @@ struct saturn {
     uint64_t  scsp_acc;           /* sample-clock accumulator          */
     uint32_t  sound_deferred;     /* SH-2 clocks waiting for sound sync */
     int16_t   snd_buf[SATURN_AUDIO_RING_FRAMES * 2];  /* stereo ring, written by the core */
-    uint32_t  snd_wp, snd_rp;
+    /* Monotonic host-ring positions: producer owns wp, consumer owns rp.
+     * Reset publishes a discard boundary instead of moving the reader. */
+    _Atomic uint64_t snd_wp, snd_rp, snd_discard;
 #define COVER_BLOCKS 65536u   /* 32-byte blocks -> 2MB of code */
     uint8_t   cover[COVER_BLOCKS/8];
     struct { uint32_t addr, val; uint64_t cy, period; } poke[8];
@@ -741,6 +744,8 @@ void     scu_timer_vblank_out(saturn *s);
  * Fills *vector and *level when one is deliverable. */
 int      scu_pending(saturn *s, uint32_t sr, int *vector, int *level);
 void     saturn_report_trace(saturn *s, FILE *out);
+/* Caller must stop guest execution; the audio consumer may remain active. */
+int      saturn_write_snapshot(const saturn *s, FILE *out);
 void     cdb_report(saturn *s, FILE *out);
 
 /* CD block (runner/src/cdblock.c). */
@@ -821,5 +826,6 @@ void     sound_sync (saturn *s);
 void     sound_set_on(saturn *s, int on);
 void     sound_clock_change_reset(saturn *s);
 uint32_t sound_drain(saturn *s, int16_t *out, uint32_t frames);
+uint32_t sound_queued(const saturn *s);
 
 #endif /* SATURN_H */
