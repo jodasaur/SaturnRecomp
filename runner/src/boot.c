@@ -18,6 +18,9 @@
 #include <signal.h>
 #ifdef _WIN32
 #include <windows.h>
+#include <io.h>
+#else
+#include <unistd.h>
 #endif
 
 void bios_hle_install(saturn *s);

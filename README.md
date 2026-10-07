@@ -125,6 +125,10 @@ saturnboot <games/<name>/game.toml> [max-instructions] [nobios]
 
 ## Build and test
 
+An additional [CMake/Ninja build](docs/BUILDING.md) supports native Linux
+headless development and optional SDL/Vulkan builds. The PowerShell workflow
+below remains available.
+
 ```powershell
 .\build.ps1
 .\tests\run_all.ps1
