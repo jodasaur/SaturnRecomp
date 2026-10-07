@@ -57,7 +57,7 @@ static void resolve_rel(const char *base_file, const char *rel, char *out, size_
 {
     const char *a = strrchr(base_file, '/');
     const char *b = strrchr(base_file, '\\');
-    const char *cut = a > b ? a : b;
+    const char *cut = !a ? b : (!b || a > b ? a : b);
     int absolute = rel[0] == '/' || rel[0] == '\\' ||
                    (isalpha((unsigned char)rel[0]) && rel[1] == ':');
     if (absolute || !cut) { snprintf(out, n, "%s", rel); return; }

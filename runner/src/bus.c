@@ -8,7 +8,7 @@
  */
 #include "saturn.h"
 #include "sh2_cache.h"
-#include <x86intrin.h>
+#include "host_time.h"
 #include "../../external/sh2-recomp-core/common/sh2_isa.h"
 #include <stdio.h>
 #include <string.h>
@@ -1959,7 +1959,7 @@ static int profiling(void)
  * old value and skips the short manual swap which starts the IPL shard list. */
 static void vdp1_field_change(saturn *s)
 {
-    uint64_t tv = profiling() ? __rdtsc() : 0;
+    uint64_t tv = profiling() ? host_monotonic_ns() : 0;
     int erase = 0, swap = 0;
 
     /* Ymir vdp.cpp BeginHPhaseLeftBorder and the VDP1 timing notes make one
@@ -2014,7 +2014,7 @@ static void vdp1_field_change(saturn *s)
     if (erase) s->vdp1_erase_pending = 1;
     if (swap && (s->vdp1_reg[2] & 2u)) vdp1_begin_frame(s);
 
-    if (profiling()) s->prof_video += __rdtsc() - tv;
+    if (profiling()) s->prof_video += host_monotonic_ns() - tv;
 }
 
 uint64_t saturn_run_line(saturn *s)
@@ -2054,12 +2054,12 @@ uint64_t saturn_run_line(saturn *s)
             n = 128u - pos;
 
         if (profiling()) {
-            uint64_t t0 = __rdtsc(), t1, t2;
+            uint64_t t0 = host_monotonic_ns(), t1, t2;
             s->cur = &s->master;
             if (!s->master.halted) done += sh2_run(&s->master, n);
-            t1 = __rdtsc();
+            t1 = host_monotonic_ns();
             run_slave(s, n);
-            t2 = __rdtsc();
+            t2 = host_monotonic_ns();
             s->prof_master += t1 - t0;
             s->prof_slave  += t2 - t1;
         } else {
@@ -2075,9 +2075,9 @@ uint64_t saturn_run_line(saturn *s)
         if (s->slave_started) frt_advance(&s->slave, n);
         scu_dsp_tick(s, n);
         if (profiling()) {
-            uint64_t tv1 = __rdtsc();
+            uint64_t tv1 = host_monotonic_ns();
             vdp1_tick(s, n);
-            s->prof_vdp1 += __rdtsc() - tv1;
+            s->prof_vdp1 += host_monotonic_ns() - tv1;
         } else {
             vdp1_tick(s, n);
         }
@@ -2092,9 +2092,9 @@ uint64_t saturn_run_line(saturn *s)
          * the PHASE is not, and the 68000/SH-2 handshakes interleave within a
          * line. Kept per-slice until the movie-stall bisect clears it. */
         if (profiling()) {
-            uint64_t ts = __rdtsc();
+            uint64_t ts = host_monotonic_ns();
             sound_run(s, n);
-            s->prof_other += __rdtsc() - ts;
+            s->prof_other += host_monotonic_ns() - ts;
         } else {
             sound_run(s, n);
         }
@@ -2188,9 +2188,9 @@ uint64_t saturn_run_field(saturn *s)
             scu_raise(s, 0);                                /* V-Blank-IN      */
             scu_dma_trigger(s, 0);
             if (profiling()) {
-                uint64_t tc = __rdtsc();
+                uint64_t tc = host_monotonic_ns();
                 cdb_tick(s);
-                s->prof_other += __rdtsc() - tc;
+                s->prof_other += host_monotonic_ns() - tc;
             } else {
                 cdb_tick(s);
             }

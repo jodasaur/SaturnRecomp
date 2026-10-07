@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <x86intrin.h>
+#include "host_time.h"
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -1057,12 +1057,12 @@ int main(int argc, char **argv)
             if (dw < 1) dw = 320; if (dh < 1) dh = 224;
             if (dw > 704) dw = 704; if (dh > 512) dh = 512;
             {
-                uint64_t tv = profile ? __rdtsc() : 0;
+                uint64_t tv = profile ? host_monotonic_ns() : 0;
                 if (!(presentation_active ? saturn_vk_interpolation_begin(vk,s,dw,dh,vk_error,sizeof vk_error) : saturn_vk_render(vk, s, dw, dh, vk_error, sizeof vk_error))) {
                     fprintf(stderr, "[video] Vulkan frame failed: %s\n", vk_error);
                     running = 0;
                 }
-                if (profile) s->prof_video += __rdtsc() - tv;
+                if (profile) s->prof_video += host_monotonic_ns() - tv;
             }
             g_texw = dw; g_texh = dh; have_frame = 1;
             /* Capture the actual compute output at a reproducible field,
@@ -1106,9 +1106,9 @@ int main(int argc, char **argv)
             if (dw > 704) dw = 704;
             if (dh > 512) dh = 512;
             if (profile) {
-                uint64_t tv = __rdtsc();
+                uint64_t tv = host_monotonic_ns();
                 vdp2_render(s, g_frame, dw, dh, 1);
-                s->prof_video += __rdtsc() - tv;
+                s->prof_video += host_monotonic_ns() - tv;
             } else {
                 vdp2_render(s, g_frame, dw, dh, 1);
             }

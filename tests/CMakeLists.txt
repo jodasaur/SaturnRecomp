@@ -25,6 +25,8 @@ foreach(test audio_ring frame_pacing geometry_interp)
     saturn_test(${test} saturn_core)
 endforeach()
 saturn_test(runtime_settings saturn_settings)
+saturn_test(host_time saturn_core)
+saturn_test(game_config_paths saturn_disc)
 
 add_executable(dump_all dump_all.c)
 target_link_libraries(dump_all PRIVATE sh2_decoder)

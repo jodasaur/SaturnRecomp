@@ -181,7 +181,7 @@ static void resolve_rel(const char *cue_path, const char *name, char *out, size_
 {
     const char *slash = strrchr(cue_path, '/');
     const char *bslash = strrchr(cue_path, '\\');
-    const char *cut = slash > bslash ? slash : bslash;
+    const char *cut = !slash ? bslash : (!bslash || slash > bslash ? slash : bslash);
     int absolute = name[0] == '/' || name[0] == '\\' ||
                    (isalpha((unsigned char)name[0]) && name[1] == ':');
     if (absolute) {

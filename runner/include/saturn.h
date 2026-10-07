@@ -457,7 +457,7 @@ struct saturn {
     uint8_t  cpu_bus_active;  /* CPU access timing excludes loaders/debug/DMA */
     uint64_t frames;
     uint64_t frt_irqs;        /* interrupts sourced from a core's own FRT */
-    /* SATURN_PROF: rdtsc cycle buckets, printed at end of run. */
+    /* SATURN_PROF: monotonic host nanosecond buckets, printed at end of run. */
     uint64_t prof_master, prof_slave, prof_vdp1, prof_video, prof_other;
     uint64_t fastpath_hits, slowpath_hits;
     uint32_t irqall_mach, irqall_macl, irqall_gbr;

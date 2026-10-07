@@ -70,14 +70,36 @@ Sources are listed once for each library; tests reuse those targets. Some GPU
 tests intentionally include the renderer implementation for fault injection
 and link the remaining dependencies separately.
 
+## Host timing and headless throttling
+
+`SATURN_PROF=1` measures elapsed host time in nanoseconds with a monotonic
+clock. All runtime/frontend profiling buckets use the same units;
+`SATURN_RENDERBENCH=N` prints nanoseconds per software-rendered frame.
+These values replace timestamp-counter ticks and cannot be compared directly
+with old tick totals. Clock calls add measurement overhead, so use runs without
+profiling when measuring throughput. Guest CPU, video and sound clocks are
+unchanged.
+
+`SATURN_THROTTLE_MS=N` sleeps after each scheduled headless field on Windows
+and POSIX hosts. It is opt-in; unset or zero runs without sleeping. POSIX sleep
+resumes after signals. The `SATURN_NOVID` diagnostic bypass retains its existing
+unthrottled behavior. SDL presentation continues using its performance counter
+and delay APIs with the existing short final spin.
+
+The shared header uses QueryPerformanceCounter on Windows and
+`clock_gettime(CLOCK_MONOTONIC)`/`nanosleep` on POSIX. CMake provides
+`_POSIX_C_SOURCE=200809L`; manual POSIX builds must define it as well. Keeping
+the helper header-only preserves the existing PowerShell test source lists.
+
 ## Portability work still required
 
-The first CMake milestone retains the original x86 timing implementation.
-Apple Silicon and ARM Linux require a portable host clock before these targets
-can build. The graphical target still requires Vulkan; a software-only SDL
+The runtime no longer includes x86 timing intrinsics. The graphical target
+still requires Vulkan; a software-only SDL
 configuration and MoltenVK extension handling are subsequent milestones.
 Shader lookup still contains Windows path separators. MP3-backed CD tracks
 are decoded only on Windows; raw BIN/CUE and ISO do not need that decoder.
+The SDL audio ring's cross-thread synchronization needs correction before
+native graphical/audio validation; see [the audit](PORTABILITY.md).
 
 Native macOS and Windows validation must be performed on those hosts. Linux
 compilation and synthetic tests do not establish visible presentation, audio

@@ -12,7 +12,7 @@
 #include "game_config.h"
 #include "../../external/sh2-recomp-core/common/sh2_isa.h"
 #include <stdio.h>
-#include <x86intrin.h>
+#include "host_time.h"
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
@@ -492,16 +492,12 @@ int main(int argc, char **argv)
                 continue;
             }
             retired += saturn_run_field(s);
-#ifdef _WIN32
             /* Interactive headless validation needs time to inspect a PNG and
              * issue the next SATURN_PADFILE edge.  Unthrottled execution can
              * consume an entire title/menu window during one host-tool round
              * trip, recreating the flaky absolute-cycle automation this hook
              * was designed to replace.  Opt in; benchmark runs stay fast. */
-            if (throttle_ms) Sleep(throttle_ms);
-#else
-            (void)throttle_ms;
-#endif
+            if (throttle_ms) host_sleep_ms(throttle_ms);
             /* SATURN_POKEAT=cy:addr:val -- one 32-bit write once the master
              * clock passes cy. Lets a hypothesis about a state variable be
              * tested directly ("if the player wrote 2 here, would the BIOS
@@ -755,7 +751,7 @@ int main(int argc, char **argv)
                                   s->prof_video + s->prof_other);
             if (tot < 1) tot = 1;
             printf("prof: master %.1f%% slave %.1f%% video %.1f%% sound/cd %.1f%% "
-                   "(ticks %llu/%llu/%llu/%llu)\n",
+                   "(ns %llu/%llu/%llu/%llu)\n",
                    100.0 * s->prof_master / tot, 100.0 * s->prof_slave / tot,
                    100.0 * s->prof_video / tot, 100.0 * s->prof_other / tot,
                    (unsigned long long)s->prof_master,
@@ -769,10 +765,10 @@ int main(int argc, char **argv)
             uint64_t t0;
             vdp2_display_size(s, &bw, &bh);
             if (bw < 1) { bw = 320; bh = 224; }
-            t0 = __rdtsc();
+            t0 = host_monotonic_ns();
             for (int q = 0; q < it; q++) vdp2_render(s, bfr, bw, bh, 1);
-            printf("renderbench: %d frames, %llu ticks/frame (%dx%d)\n",
-                   it, (unsigned long long)((__rdtsc() - t0) / (uint32_t)(it ? it : 1)), bw, bh);
+            printf("renderbench: %d frames, %llu ns/frame (%dx%d)\n",
+                   it, (unsigned long long)((host_monotonic_ns() - t0) / (uint32_t)(it ? it : 1)), bw, bh);
         }
         printf("  cd: boot_delay=%d first_cmd=%d processing=%d peri_count=%llu "
                "last_peri=%llu status=%02X init_busy=%d CR1=%04X HIRQ=%04X\n",

@@ -1,7 +1,8 @@
 # Portability inspection and implementation sequence
 
-Inspection baseline: commit `26c9715`. This document records the first build
-milestone; it does not claim native Apple Silicon or Windows verification.
+Inspection baseline: commit `26c9715`. The initial findings below describe that
+baseline; the Phase 2 audit records subsequent fixes. This document does not
+claim native Apple Silicon or Windows verification.
 
 ## Current source and build structure
 
@@ -93,3 +94,85 @@ proprietary media belongs in these changes.
   diagnostics. Changing emulation expressions requires independent evidence.
 - CD-DA currently relies on supplied media. GPU tests need a real SDL/Vulkan
   environment. A skip is not renderer or audio validation.
+
+## Phase 2 implementation and audit
+
+### Host timing and pacing
+
+`runner/include/host_time.h` replaces every runtime/frontend `__rdtsc` call
+and all unconditional x86 headers. It reports monotonic nanoseconds using
+QueryPerformanceCounter on Windows and CLOCK_MONOTONIC on POSIX. No ARM
+counter or guest-cycle conversion is introduced. Clock failure terminates
+instead of returning a bogus timestamp. Helpers are inline to retain the
+PowerShell scripts' explicit test source lists without new link dependencies.
+There is no shared mutable clock initialization to synchronize.
+
+Headless throttling now sleeps on POSIX and retries nanosleep after EINTR;
+Windows keeps Sleep. The SDL frontend already uses SDL's portable performance
+counter, frequency and delay APIs. Its last approximately three milliseconds
+are deliberately a busy wait; Windows additionally issues YieldProcessor.
+That hint is platform-guarded and is not needed for the timer to work on POSIX.
+Cadence/deadline calculations and guest scheduler clocks are untouched.
+
+### Filesystem and compiler assumptions
+
+Both game configuration and CUE relative-path helpers compared a separator
+pointer with a possibly null pointer. They now check null before comparing
+pointers within the same string. Tests exercise bare paths, either separator,
+parent-relative paths, POSIX absolute paths, drive paths and UNC paths, plus
+actual synthetic CUE sector reads. Existing path spelling is retained; this
+does not translate a Windows path into a POSIX filesystem path.
+
+Disc offsets still use fseek/ftell and long. These are 64 bits on the target
+LP64 Linux/macOS hosts; Windows LLP64/32-bit builds retain a large-file limit
+and need a separately tested file-offset abstraction. Shader backslashes are
+an identified GUI issue for Phase 3. Windows MP3 loading remains guarded;
+raw sector access has no platform dependency. Settings replacement already
+selects Windows file APIs or POSIX rename/unlink.
+
+The remaining compiler-specific operations are GCC/Clang's noinline attribute
+and guarded __builtin_clz (zero is handled before the intrinsic). These are
+not x86 instructions and fit the supported compilers on ARM64. MSVC remains
+outside the supported compiler set. No warnings are suppressed by this work.
+
+### Byte order, alignment and synchronization
+
+Disc/IP/ISO readers assemble little- and big-endian fields from bytes; core
+bus and MC68000 memory access likewise use byte assembly rather than casting
+guest byte arrays to host word pointers. PNG output writes its multibyte fields
+explicitly. These paths do not require aligned guest addresses. SDL audio
+casts its provided sample buffer to int16_t; Vulkan shader input comes from
+allocated storage. Settings field offsets address actual int members.
+Native Saturn structure dumps still include pointers, padding and host layout;
+they are diagnostic snapshots, not cross-platform saves. Native sample/WAV
+storage also warrants separate review for big-endian hosts, which are outside
+the current little-endian x86-64/ARM64 targets. An alignment-sanitized Linux
+test run is useful evidence, not proof for every unexercised memory path.
+
+Field-worker handoff uses SDL semaphores: the main thread waits for completion
+before reading guest state and posts work after capturing graphics inputs.
+The audio callback concurrently drains the shared sound ring. Its snd_wp and
+snd_rp indices are ordinary uint32_t fields in sound.c and window.c, with no
+audio lock or acquire/release synchronization; sound reset can also modify
+them. SDL atomics protect gain and diagnostic counters, not ring ownership.
+This is an existing C data race, and x86 execution does not establish ARM64
+correctness. Address ring publication, reset and snapshot reads as one focused
+SDL/audio change before the Phase 3 graphical milestone. The current callback
+tests cover sample behavior but do not validate concurrent access.
+
+### Linux verification
+
+- Release headless: 26 passed, 1 media-dependent skip, including all-opcode
+  decoder conformance, 20,000 fastpath fuzz cases and the new timing/path tests.
+- Release GUI build: 28 passed, 4 skips (CD-DA media and three Vulkan tests
+  without a Vulkan display). Existing overlay and audio callback tests pass.
+- Decoder output is byte-identical to the pre-CMake baseline.
+- Debug headless with GCC alignment sanitizer: 26 passed, 1 media-dependent
+  skip; no alignment violations reported.
+- A temporary, entirely synthetic ISO with an SH-2 branch loop passes CLI
+  inspection and headless execution. Profiling/renderbench print nanoseconds;
+  0/40 ms throttling produces identical retired counts, guest registers and
+  cycles, with the expected added host delay. No game or BIOS media is used.
+
+Native ARM64 and MinGW execution remain host-validation tasks. These checks
+establish Linux/headless behavior, not macOS presentation or real-game audio.
