@@ -32,6 +32,9 @@ add_executable(dump_all dump_all.c)
 target_link_libraries(dump_all PRIVATE sh2_decoder)
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_FOUND)
+    add_test(NAME analyze_modules COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/analyze_modules.py" "$<TARGET_FILE:saturnrecomp>")
+    set_tests_properties(analyze_modules PROPERTIES TIMEOUT 120)
     add_test(NAME decoder_conformance COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake_decoder_test.py" "$<TARGET_FILE:dump_all>")
     set_tests_properties(decoder_conformance PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)

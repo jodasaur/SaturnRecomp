@@ -143,6 +143,7 @@ The renderer regressions include per-character VDP2 foreground priority, VDP1/us
 
 - [Playing games through the launcher](docs/LAUNCHER.md)
 - [Setting up a game](docs/GAME_SETUP.md)
+- [Executable and overlay analysis](docs/MODULE_ANALYSIS.md)
 - [Sonic 3D Blast setup](docs/SONIC_3D_BLAST.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Compatibility and limitations](docs/COMPATIBILITY.md)
