@@ -54,6 +54,10 @@ static char error[512];
 static unsigned checks;
 #define REQUIRE(c,msg) do {checks++;if(!(c)){fprintf(stderr,"FAIL: %s (%s)\n",msg,error);return 0;}}while(0)
 
+#ifndef SATURN_TEST_SHADER_DIRECTORY
+#define SATURN_TEST_SHADER_DIRECTORY "runner/shaders"
+#endif
+
 static int interpolation_allocation_failures(saturn_vk_renderer *r) {
     unsigned failures=0;
     for(int point=0;point<32;point++) {
@@ -95,7 +99,7 @@ static int overlay_format_changes(saturn_vk_renderer *r) {
     static const game_overlay_draw_command draw_command={3,0,0,0,16,16};
     const game_overlay_draw_data draw={vertices,indices,&draw_command,sizeof vertices,sizeof indices,1,16,16};
     game_overlay_vk *overlay=game_overlay_vk_create(r->physical,r->device,r->queue,r->queue_family,
-        VK_FORMAT_R8G8B8A8_UNORM,white,1,1,"runner/shaders",error,sizeof error);
+        VK_FORMAT_R8G8B8A8_UNORM,white,1,1,SATURN_TEST_SHADER_DIRECTORY,error,sizeof error);
     REQUIRE(overlay!=NULL,"create the real overlay pipeline for a synthetic atlas");
     const VkFormat formats[]={VK_FORMAT_R8G8B8A8_UNORM,VK_FORMAT_B8G8R8A8_UNORM,
         VK_FORMAT_R8G8B8A8_UNORM,VK_FORMAT_R8G8B8A8_UNORM};

@@ -76,6 +76,8 @@ if(SATURNRECOMP_BUILD_GUI)
             set_target_properties(test_${test} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
             set_tests_properties(${test} PROPERTIES SKIP_RETURN_CODE 77)
         endforeach()
+        target_compile_definitions(test_render_quality PRIVATE
+            SATURN_TEST_SHADER_DIRECTORY="${PROJECT_BINARY_DIR}/shaders")
         add_executable(test_vdp1_interlace_vk vdp1_interlace.c ../runner/src/game_overlay_vk.c)
         target_compile_definitions(test_vdp1_interlace_vk PRIVATE SATURN_TEST_VULKAN)
         target_compile_options(test_vdp1_interlace_vk PRIVATE -UNDEBUG)

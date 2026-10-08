@@ -281,3 +281,24 @@ and callback checks passed again; GPU checks retained their display-related
 skips. The portability test also checks device extension presence, incomplete
 enumeration retry and error handling. macOS continues to default to the tested
 software configuration unless Vulkan is explicitly enabled at configure time.
+
+## User-reported MoltenVK validation — 2026-10-08
+
+Source snapshot: `397c73f`. The Mac log identifies an Apple M1 Pro and confirms
+Vulkan initialization, presentation and a user-reported normally working game
+launch. Interpolation toggling is recorded in the runtime log. CTest reported
+33 passes, one failure and two skips out of 36 tests (including a locally
+configured corpus check). Portability discovery, interpolation material and
+VDP1 interlace GPU checks passed on the actual Metal-backed device. CD-DA and
+decoder conformance skipped; the new build did not select the earlier Capstone
+Python environment.
+
+The render_quality test failed while opening its overlay shaders, before
+running overlay/quality checks. It used a hardcoded source-tree path while
+CMake generated shaders in the build directory. CMake now supplies that test's
+shader directory explicitly; manual builds retain the original source-tree
+fallback. Linux rebuilt successfully and verifies the configured path points
+to both generated overlay shaders. Portability and SDL frontend checks pass;
+the quality test still skips without a Vulkan display here. The corrected
+quality checks need a native Mac rerun. This report does not establish overlay
+or enhanced-quality correctness before that rerun.

@@ -145,8 +145,9 @@ An explicit Vulkan launch reports initialization failures instead of silently
 falling back. Look for `[video] Vulkan:` with the Apple GPU name, then check
 visible rendering, music/effects, controls, resizing and Retina output. F1 opens
 the settings overlay in Vulkan mode. GPU tests should execute on this host;
-a skipped GPU test does not validate MoltenVK. Native MoltenVK results remain
-pending until these commands are run on a Mac.
+a skipped GPU test does not validate MoltenVK. Initial user-reported MoltenVK game presentation on an Apple M1 Pro and two
+GPU regression tests passed. A corrected overlay-shader test path needs a
+native quality-test rerun; see [validation details](PORTABILITY.md).
 
 ## Windows
 
@@ -203,7 +204,8 @@ the helper header-only preserves the existing PowerShell test source lists.
 
 The runtime no longer includes x86 timing intrinsics. An SDL software-only
 configuration is available, and shader lookup uses portable separators.
-MoltenVK extension handling is implemented; native validation remains pending. MP3-backed CD tracks
+MoltenVK extension handling and initial native presentation are verified;
+the corrected quality test needs a Mac rerun. MP3-backed CD tracks
 are decoded only on Windows; raw BIN/CUE and ISO do not need that decoder.
 The SDL audio ring now uses atomic publication and consumer-owned reset
 handling; see [the audit](PORTABILITY.md). Initial Mac audio playback is
