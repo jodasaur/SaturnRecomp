@@ -66,6 +66,8 @@ if(SATURNRECOMP_BUILD_GUI)
         set_tests_properties(software_frontend PROPERTIES TIMEOUT 45)
     endif()
     if(SATURNRECOMP_ENABLE_VULKAN)
+        saturn_test(vulkan_portability saturn_core saturn_overlay Vulkan::Vulkan)
+        target_sources(test_vulkan_portability PRIVATE ../runner/src/game_overlay_vk.c)
         foreach(test interpolation_material render_quality)
             # These include vulkan_renderer.c directly for fault injection.
             saturn_test(${test} saturn_core saturn_overlay Vulkan::Vulkan)

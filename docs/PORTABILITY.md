@@ -251,6 +251,33 @@ The user then launched a locally supplied retail title through the software
 frontend and reported normal-looking behavior, working controls, music and
 sound effects. This establishes the initial native Mac presentation/input/audio
 smoke milestone. It does not establish comprehensive game compatibility or
-replace the still-skipped CD-DA test. macOS version, SDL2 version, resizing,
-Retina scaling and extended gameplay were not reported. No game/BIOS data or
+replace the still-skipped CD-DA test. The user also reported successful window resizing and normal-looking output
+on the laptop Retina display. Transitions between displays with different scale
+factors remain untested. macOS version, SDL2 version and extended gameplay
+were not reported. No game/BIOS data or
 title-specific code changes are included in this validation record.
+
+## Phase 4 MoltenVK preparation
+
+Vulkan instance setup now queries advertised extensions and opts into
+VK_KHR_portability_enumeration with its matching instance flag when available.
+The extension is not duplicated if SDL already requests it. Enumeration errors
+stop initialization with a diagnostic, and incomplete lists are retried. Device
+creation enables VK_KHR_portability_subset only when the chosen GPU advertises
+it; native Vulkan devices retain their existing swapchain-only request. No
+shader or renderer algorithm changes are made for Metal.
+
+A display-independent fault-injection test exercises the actual instance setup
+with portability absent/present, an SDL-supplied duplicate, an incomplete
+extension list and an enumeration error. Native MoltenVK presentation and the
+existing GPU regression tests still require a Mac. BUILDING.md documents the
+Homebrew loader, headers, MoltenVK and shaderc packages, an explicit driver
+manifest and matching SDL loader selection. Windows validation remains pending.
+
+Linux Release Vulkan build verification: 31 tests passed, zero failed and four
+skipped (CD-DA media and three GPU tests without a display). After adding retry
+handling for device extension discovery, the focused portability, SDL frontend
+and callback checks passed again; GPU checks retained their display-related
+skips. The portability test also checks device extension presence, incomplete
+enumeration retry and error handling. macOS continues to default to the tested
+software configuration unless Vulkan is explicitly enabled at configure time.

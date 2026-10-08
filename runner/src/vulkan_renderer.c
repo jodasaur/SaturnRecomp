@@ -274,17 +274,54 @@ static void free_buffer(saturn_vk_renderer *r, vkbuf *b)
     memset(b, 0, sizeof *b);
 }
 
+#ifdef VK_KHR_portability_enumeration
+static int has_instance_extension(const char *name, char *error, size_t error_size)
+{
+    VkExtensionProperties *extensions = NULL;
+    for (;;) {
+        uint32_t count = 0;
+        VkResult result = vkEnumerateInstanceExtensionProperties(NULL, &count, NULL);
+        if (result != VK_SUCCESS) {
+            set_error(error, error_size, "Vulkan instance extension count failed (%d)", (int)result);
+            return -1;
+        }
+        if (!count) return 0;
+        extensions = malloc((size_t)count * sizeof *extensions);
+        if (!extensions) {
+            set_error(error, error_size, "out of memory");
+            return -1;
+        }
+        result = vkEnumerateInstanceExtensionProperties(NULL, &count, extensions);
+        if (result == VK_INCOMPLETE) { free(extensions); continue; }
+        if (result != VK_SUCCESS) {
+            free(extensions);
+            set_error(error, error_size, "Vulkan instance extension list failed (%d)", (int)result);
+            return -1;
+        }
+        int found = 0;
+        for (uint32_t i = 0; i < count; i++)
+            if (!strcmp(extensions[i].extensionName, name)) found = 1;
+        free(extensions);
+        return found;
+    }
+}
+#endif
+
 static int has_device_extension(VkPhysicalDevice p, const char *name)
 {
-    uint32_t n = 0;
-    vkEnumerateDeviceExtensionProperties(p, NULL, &n, NULL);
-    VkExtensionProperties *e = n ? malloc((size_t)n * sizeof *e) : NULL;
-    if (n && !e) return 0;
-    vkEnumerateDeviceExtensionProperties(p, NULL, &n, e);
-    int found = 0;
-    for (uint32_t i = 0; i < n; i++) if (!strcmp(e[i].extensionName, name)) found = 1;
-    free(e);
-    return found;
+    for (;;) {
+        uint32_t n = 0;
+        if (vkEnumerateDeviceExtensionProperties(p, NULL, &n, NULL) != VK_SUCCESS || !n) return 0;
+        VkExtensionProperties *e = malloc((size_t)n * sizeof *e);
+        if (!e) return 0;
+        VkResult result = vkEnumerateDeviceExtensionProperties(p, NULL, &n, e);
+        if (result == VK_INCOMPLETE) { free(e); continue; }
+        if (result != VK_SUCCESS) { free(e); return 0; }
+        int found = 0;
+        for (uint32_t i = 0; i < n; i++) if (!strcmp(e[i].extensionName, name)) found = 1;
+        free(e);
+        return found;
+    }
 }
 
 static int choose_device(saturn_vk_renderer *r, char *error, size_t error_size)
@@ -505,7 +542,7 @@ saturn_vk_renderer *saturn_vk_create(SDL_Window *window, saturn *s,
     if (!SDL_Vulkan_GetInstanceExtensions(window, &ext_count, NULL) || !ext_count) {
         set_error(error, error_size, "SDL Vulkan extensions: %s", SDL_GetError()); goto fail;
     }
-    extensions = malloc((size_t)ext_count * sizeof *extensions);
+    extensions = malloc(((size_t)ext_count + 1u) * sizeof *extensions);
     if (!extensions || !SDL_Vulkan_GetInstanceExtensions(window, &ext_count, extensions)) {
         set_error(error, error_size, "SDL Vulkan extensions: %s", SDL_GetError()); goto fail;
     }
@@ -516,6 +553,20 @@ saturn_vk_renderer *saturn_vk_create(SDL_Window *window, saturn *s,
     VkInstanceCreateInfo ici = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
     ici.pApplicationInfo = &app; ici.enabledExtensionCount = ext_count;
     ici.ppEnabledExtensionNames = extensions;
+#ifdef VK_KHR_portability_enumeration
+    int portability = has_instance_extension(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
+                                             error, error_size);
+    if (portability < 0) goto fail;
+    if (portability) {
+        /* The loader otherwise hides devices implementing the portability subset. */
+        uint32_t i;
+        for (i = 0; i < ext_count; i++)
+            if (!strcmp(extensions[i], VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME)) break;
+        if (i == ext_count) extensions[ext_count++] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
+        ici.enabledExtensionCount = ext_count;
+        ici.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+    }
+#endif
     VK_CHECK(vkCreateInstance(&ici, NULL, &r->instance));
     free(extensions); extensions = NULL;
     if (!SDL_Vulkan_CreateSurface(window, r->instance, &r->surface)) {
@@ -526,10 +577,12 @@ saturn_vk_renderer *saturn_vk_create(SDL_Window *window, saturn *s,
     float priority = 1.0f;
     VkDeviceQueueCreateInfo qci = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
     qci.queueFamilyIndex = r->queue_family; qci.queueCount = 1; qci.pQueuePriorities = &priority;
-    const char *dev_ext[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+    /* The subset name is usable without Vulkan's optional beta feature types. */
+    const char *dev_ext[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_KHR_portability_subset" };
     VkDeviceCreateInfo dci = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
     dci.queueCreateInfoCount = 1; dci.pQueueCreateInfos = &qci;
-    dci.enabledExtensionCount = 1; dci.ppEnabledExtensionNames = dev_ext;
+    dci.enabledExtensionCount = has_device_extension(r->physical, dev_ext[1]) ? 2u : 1u;
+    dci.ppEnabledExtensionNames = dev_ext;
     VK_CHECK(vkCreateDevice(r->physical, &dci, NULL, &r->device));
     vkGetDeviceQueue(r->device, r->queue_family, 0, &r->queue);
     if (!create_swapchain(r, error, error_size)) goto fail;

@@ -86,7 +86,7 @@ ctest --test-dir out/macos --output-on-failure
 
 The `c4c2847` source snapshot has user-reported native ARM64 build/test
 verification with AppleClang 21, plus a successful game launch with working
-controls, music and sound effects. See [validation details](PORTABILITY.md).
+controls, music, sound effects, window resizing and initial Retina presentation. See [validation details](PORTABILITY.md).
 With a local, user-supplied game configuration:
 
 ```sh
@@ -99,6 +99,54 @@ input, pause/frame stepping and audible playback. In software mode F1 retains
 the existing diagnostic display; the Vulkan settings overlay and interpolation
 are unavailable. CTest's synthetic SDL run uses dummy video/audio drivers and
 does not establish visible presentation or sound quality.
+
+## macOS MoltenVK frontend
+
+Install the additional Homebrew dependencies (retain the existing CMake,
+Ninja and SDL2 packages):
+
+```sh
+brew install vulkan-loader vulkan-headers molten-vk shaderc
+```
+
+[shaderc](https://formulae.brew.sh/formula/shaderc) supplies `glslc`;
+[the loader](https://formulae.brew.sh/formula/vulkan-loader) loads
+[MoltenVK](https://formulae.brew.sh/formula/molten-vk), which implements Vulkan
+using Metal. This configuration links the dynamic Vulkan loader, rather than
+linking directly to MoltenVK. Keep it in a separate build directory so the
+validated software frontend remains available.
+
+```sh
+cmake -S . -B out/macos-vulkan -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_PREFIX_PATH="$(brew --prefix)" \
+  -DVulkan_LIBRARY="$(brew --prefix vulkan-loader)/lib/libvulkan.dylib" \
+  -DVulkan_INCLUDE_DIR="$(brew --prefix vulkan-headers)/include" \
+  -DSATURNRECOMP_GLSLC="$(brew --prefix shaderc)/bin/glslc" \
+  -DSATURNRECOMP_BUILD_GUI=ON -DSATURNRECOMP_ENABLE_VULKAN=ON
+cmake --build out/macos-vulkan
+
+export VK_DRIVER_FILES="$(brew --prefix molten-vk)/etc/vulkan/icd.d/MoltenVK_icd.json"
+export SDL_VULKAN_LIBRARY="$(brew --prefix vulkan-loader)/lib/libvulkan.dylib"
+ctest --test-dir out/macos-vulkan --output-on-failure
+SATURN_RENDERER=vulkan out/macos-vulkan/saturnwin "games/<name>/game.toml"
+```
+
+The driver manifest path follows Homebrew's
+[MoltenVK installation](https://github.com/Homebrew/homebrew-core/blob/master/Formula/m/molten-vk.rb).
+The explicit SDL library path selects the same loader used at link time, as
+required by [SDL's loader guidance](https://wiki.libsdl.org/SDL2/SDL_Vulkan_LoadLibrary).
+These exports apply to the current terminal. If using a Vulkan SDK installation
+instead, use its loader, headers, shader compiler and driver manifest together.
+
+The runtime enables portability enumeration when advertised by the instance
+and the portability subset extension when advertised by the selected device.
+This is the [MoltenVK discovery requirement](https://github.com/KhronosGroup/MoltenVK#vulkan-portability).
+An explicit Vulkan launch reports initialization failures instead of silently
+falling back. Look for `[video] Vulkan:` with the Apple GPU name, then check
+visible rendering, music/effects, controls, resizing and Retina output. F1 opens
+the settings overlay in Vulkan mode. GPU tests should execute on this host;
+a skipped GPU test does not validate MoltenVK. Native MoltenVK results remain
+pending until these commands are run on a Mac.
 
 ## Windows
 
@@ -155,7 +203,7 @@ the helper header-only preserves the existing PowerShell test source lists.
 
 The runtime no longer includes x86 timing intrinsics. An SDL software-only
 configuration is available, and shader lookup uses portable separators.
-MoltenVK extension handling is a subsequent milestone. MP3-backed CD tracks
+MoltenVK extension handling is implemented; native validation remains pending. MP3-backed CD tracks
 are decoded only on Windows; raw BIN/CUE and ISO do not need that decoder.
 The SDL audio ring now uses atomic publication and consumer-owned reset
 handling; see [the audit](PORTABILITY.md). Initial Mac audio playback is
@@ -163,8 +211,9 @@ user-verified; extended testing remains. Regenerate diagnostic structure
 snapshots after rebuilding, since
 their native layout changes with the ring counters.
 
-Native Windows validation remains pending. Mac resizing/Retina scaling and
-extended gameplay remain unchecked. Linux compilation and synthetic tests
+Native Windows validation remains pending. Initial Mac software resizing and
+Retina presentation are user-verified; transitions between displays with different
+scale factors and extended gameplay remain unchecked. Linux compilation and synthetic tests
 alone do not establish presentation, audio quality, or game compatibility.
 Raw diagnostic snapshots
 contain native structure layouts and should not be treated as portable saves.
