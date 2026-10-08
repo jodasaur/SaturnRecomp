@@ -1,8 +1,8 @@
 # Portability inspection and implementation sequence
 
 Inspection baseline: commit `26c9715`. The initial findings below describe that
-baseline; the Phase 2 audit records subsequent fixes. This document does not
-claim native Apple Silicon or Windows verification.
+baseline; the later audits record subsequent fixes. User-reported native
+Apple Silicon validation is recorded below; Windows validation remains pending.
 
 ## Current source and build structure
 
@@ -233,7 +233,24 @@ Vulkan request. The same smoke test selects software explicitly in a Vulkan
 build. No proprietary data is required. Undefined-symbol inspection finds no
 Vulkan or SDL Vulkan references in the software executable.
 
-Native ARM64 compilation, visible macOS window/input/audio validation and
-Windows regression testing remain pending. The build commands and native
-checks are in BUILDING.md. This completes preparation for that milestone,
-not host validation or MoltenVK support.
+Subsequent user-reported Mac validation is recorded below. Windows regression
+testing and MoltenVK support remain pending. The build commands and native
+checks are in BUILDING.md.
+
+## User-reported Apple Silicon validation — 2026-10-08
+
+Source snapshot: `c4c2847`. The user configured a Release ARM64 build with
+AppleClang 21.0.0.21000101, Homebrew SDL2 and Vulkan disabled. The CLI, headless
+runtime, graphical runner and tests compiled successfully. After installing
+Capstone 5.0.9 in a Python environment, CTest reported 30 passes, zero failures
+and one skip: the media-dependent cdda_play test. Decoder conformance, core
+CPU/video/audio checks, host timing, threaded audio-ring and dummy-driver SDL
+frontend tests all passed. Compiler warnings remained visible.
+
+The user then launched a locally supplied retail title through the software
+frontend and reported normal-looking behavior, working controls, music and
+sound effects. This establishes the initial native Mac presentation/input/audio
+smoke milestone. It does not establish comprehensive game compatibility or
+replace the still-skipped CD-DA test. macOS version, SDL2 version, resizing,
+Retina scaling and extended gameplay were not reported. No game/BIOS data or
+title-specific code changes are included in this validation record.

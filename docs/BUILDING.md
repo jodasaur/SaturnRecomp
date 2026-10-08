@@ -84,8 +84,9 @@ cmake -S . -B out/macos -DPython3_EXECUTABLE="$PWD/out/test-python/bin/python"
 ctest --test-dir out/macos --output-on-failure
 ```
 
-The native Mac build/run is still to be verified on an Apple Silicon host;
-these are setup instructions, not a claim of completed native validation.
+The `c4c2847` source snapshot has user-reported native ARM64 build/test
+verification with AppleClang 21, plus a successful game launch with working
+controls, music and sound effects. See [validation details](PORTABILITY.md).
 With a local, user-supplied game configuration:
 
 ```sh
@@ -157,11 +158,13 @@ configuration is available, and shader lookup uses portable separators.
 MoltenVK extension handling is a subsequent milestone. MP3-backed CD tracks
 are decoded only on Windows; raw BIN/CUE and ISO do not need that decoder.
 The SDL audio ring now uses atomic publication and consumer-owned reset
-handling; see [the audit](PORTABILITY.md). Native audio validation is still
-required. Regenerate diagnostic structure snapshots after rebuilding, since
+handling; see [the audit](PORTABILITY.md). Initial Mac audio playback is
+user-verified; extended testing remains. Regenerate diagnostic structure
+snapshots after rebuilding, since
 their native layout changes with the ring counters.
 
-Native macOS and Windows validation must be performed on those hosts. Linux
-compilation and synthetic tests do not establish visible presentation, audio
-quality, or compatibility with any particular game. Raw diagnostic snapshots
+Native Windows validation remains pending. Mac resizing/Retina scaling and
+extended gameplay remain unchecked. Linux compilation and synthetic tests
+alone do not establish presentation, audio quality, or game compatibility.
+Raw diagnostic snapshots
 contain native structure layouts and should not be treated as portable saves.
