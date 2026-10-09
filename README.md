@@ -6,6 +6,9 @@
 
 SaturnRecomp is an experimental, clean-room Sega Saturn runtime and static-recompilation research toolkit. It contains a Saturn disc/configuration CLI, an SH-2 execution core, and a Windows SDL2 runner that boots a user-supplied game through a user-supplied Saturn BIOS.
 
+For this fork's portability, analysis-tooling and independent Panzer Dragoon
+project boundaries, see [Repository layout](docs/REPOSITORY_LAYOUT.md).
+
 [![SaturnRecomp's native Windows launcher showing the game library with NiGHTS selected](docs/images/launcher-library.png)](docs/images/launcher-library.png)
 
 *The native Windows launcher. [Setup and play guide](docs/LAUNCHER.md).*

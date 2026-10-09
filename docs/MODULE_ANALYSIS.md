@@ -10,19 +10,17 @@ Use a built `saturnrecomp` CLI and Python 3 (standard library only). Keep the
 original CUE and every referenced BIN together. The CLI disc reader handles
 the track layout; the analysis tool does not implement a second CUE reader.
 
-For the user-inspected Panzer Dragoon USA disc (`MK-81009`, `V1.001`), the
-first-read file is `/1ST_READ.PRG`, 282400 bytes at LBA 22. IP.BIN reports a
-first-read load address of `0x06004000`, with size zero meaning the whole file.
-These observations apply to that dump; inspect other revisions independently.
+Inspect the selected disc to identify its first-read filename and load address.
+Use the values reported by IP.BIN; inspect each title and revision independently.
 
 From the repository root on the Mac:
 
 ```sh
 python3 tools/analyze_modules.py \
-  'games/panzer-dragoon/Panzer Dragoon (USA) (1S).cue' \
+  'games/example/disc.cue' \
   --cli out/macos/saturnrecomp \
   --first-read /1ST_READ.PRG \
-  --out out/analysis/panzer-dragoon-usa
+  --out out/analysis/example
 ```
 
 On Linux, substitute your CUE path and `out/cmake-headless/saturnrecomp`.
@@ -46,10 +44,9 @@ not the complete disc or audio tracks.
 
 ## Phase 2: establish module loading
 
-For Panzer Dragoon, inspect the first-read startup and its file-loading calls.
-The reported `TITLE.PRG`, `SEGALOGO.PRG`, `ROUND*.PRG` and `DEMO*.PRG` files are
-overlay candidates. `SDDRVS.TSK` needs separate architecture/format investigation.
-Do not assign any of them the first-read address by default.
+Inspect the first-read startup and its file-loading calls. Other selected files
+are candidates requiring architecture and format investigation. Do not assign
+them the first-read address by default.
 
 Record each claim with its evidence: file offset, decoded instruction address,
 loader destination, source filename, compression handling, and observed runtime
