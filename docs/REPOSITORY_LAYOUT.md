@@ -6,11 +6,11 @@ tooling. Panzer Dragoon investigation lives in an independent sibling repository
 | Branch | Purpose | Initial boundary |
 | --- | --- | --- |
 | `main` | Local upstream baseline, tracking `upstream/main` | `26c9715` |
-| `codex/build-portability` | Build, portability and associated runtime fixes/tests | `bb8dd2d` |
-| `codex/analysis-tooling` | General tools built on portability | `545b6b4`, then tooling-only changes |
-| `codex/panzer-runtime` | Preserved experimental native implementation | `a723587` |
+| `build-portability` | Build, portability and associated runtime fixes/tests | `bb8dd2d` |
+| `analysis-tooling` | General tools built on portability | `545b6b4`, then tooling-only changes |
+| `panzer-runtime` | Preserved experimental native implementation | `a723587` |
 
-`codex/cross-platform-build` is retained at `545b6b4` as the original branch.
+`cross-platform-build` is retained at `545b6b4` as the original branch.
 No existing commits were rewritten. `origin` is the user's SaturnRecomp fork;
 `upstream` is `sonsegajp/SaturnRecomp`. The portability branch contains seven
 commits beyond the upstream baseline and excludes executable-analysis tooling
@@ -18,17 +18,17 @@ and Panzer native routines.
 
 ## Upstream contributions
 
-Prepare build/portability PRs from `codex/build-portability` against
+Prepare build/portability PRs from `build-portability` against
 `sonsegajp/SaturnRecomp:main`. Keep future upstream changes on that branch or
 on focused branches based on upstream. Bring accepted portability changes into
-`codex/analysis-tooling` by merging or rebasing deliberately. Do not merge the
+`analysis-tooling` by merging or rebasing deliberately. Do not merge the
 tooling or experimental branches into a portability PR.
 
 Inspect the exact proposed scope with:
 
 ```sh
-git log --oneline upstream/main..codex/build-portability
-git diff --stat upstream/main...codex/build-portability
+git log --oneline upstream/main..build-portability
+git diff --stat upstream/main...build-portability
 ```
 
 ## Panzer Dragoon project
@@ -46,7 +46,7 @@ Extracted game code, firmware, decompiler exports, captures and generated output
 remain local. Neither repository's Git history backs up ignored evidence.
 
 The native experiment remains available in `out/panzer-runtime`, a Git worktree
-on `codex/panzer-runtime`. Its build directory is `out/panzer-runtime-build`.
+on `panzer-runtime`. Its build directory is `out/panzer-runtime-build`.
 This keeps native validation independent of the active tooling checkout. The
 Panzer-owned patch reproduces the experiment on its pinned tooling revision.
 It is a transitional integration mechanism; there is no general native-plugin
